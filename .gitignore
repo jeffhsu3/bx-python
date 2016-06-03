@@ -3,6 +3,7 @@ build
 
 # Python bytecode
 *.pyc
+*.c
 
 # Object files
 *.so
@@ -22,3 +23,9 @@ nose*.egg
 
 # .eggs directory
 .eggs
+
+# vim temp files
+*.swp
+*.swo
+
+/dist

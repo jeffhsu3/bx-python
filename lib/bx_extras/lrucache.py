@@ -128,9 +128,9 @@ class LRUCache(object):
     def __init__(self, size=DEFAULT_SIZE):
         # Check arguments
         if size <= 0:
-            raise ValueError, size
+            raise ValueError(size)
         elif type(size) is not type(0):
-            raise TypeError, size
+            raise TypeError(size)
         object.__init__(self)
         self.__heap = []
         self.__dict = {}
@@ -210,21 +210,21 @@ class LRUCache(object):
 
 if __name__ == "__main__":
     cache = LRUCache(25)
-    print cache
+    print(cache)
     for i in range(50):
         cache[i] = str(i)
-    print cache
+    print(cache)
     if 46 in cache:
         del cache[46]
-    print cache
+    print(cache)
     cache.size = 10
-    print cache
+    print(cache)
     cache[46] = '46'
-    print cache
-    print len(cache)
+    print(cache)
+    print(len(cache))
     for c in cache:
-        print c
-    print cache
-    print cache.mtime(46)
+        print(c)
+    print(cache)
+    print(cache.mtime(46))
     for c in cache:
-        print c
+        print(c)

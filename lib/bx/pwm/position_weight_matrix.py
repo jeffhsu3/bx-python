@@ -27,7 +27,7 @@ class Align(object):
                 elif ncol != len(row):
                     raise ValueError("Align: __init__:alignment block:row %d does not have %d columns, it has %d" % (rownum,ncol,len(row)))
             except:
-                print row
+                print(row)
                 raise Exception('')
         self.ncols = ncol
         self.dims = (self.nrows,self.ncols)
@@ -51,7 +51,7 @@ class AlignScoreMatrix (object):
         return shape(self.matrix)[1]
 
     def __str__(self):
-        print self.matrix
+        print(self.matrix)
 
 def score_align_motif (align,motif,gapmask=None,byPosition=True):
 
@@ -745,7 +745,7 @@ class Reader (object):
                 continue
             # skip low quality entries
             if line.startswith("CC  TRANSFAC Sites of quality"):
-                print >>sys.stderr, line.strip(), tfId
+                print((line.strip(), tfId), file=sys.stderr)
                 pwmRows = None
                 continue
         if pwmRows != None: # we've finished collecting a desired matrix

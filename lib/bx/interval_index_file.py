@@ -80,6 +80,7 @@ offset+16+B:  ...          (B bytes) value for interval 2
 ...          ...           ...
 ============ ===========   =================================================
 """
+import sys
 
 from bisect import *
 from struct import *
@@ -116,26 +117,27 @@ for i in range( BIN_LEVELS - 2 ):
     BIN_OFFSETS_MAX.insert( 0, ( BIN_OFFSETS_MAX[0] << BIN_NEXT_SHIFT ) )
 # The maximum size for the top bin is actually bigger than the signed integers
 # we use to store positions in the file, so we'll change it to prevent confusion
-BIN_OFFSETS_MAX[ 0 ] = max
 
 # Constants for the minimum and maximum size of the overall interval
 MIN = 0                     
 OLD_MAX = 512*1024*1024     # Maximum size supported by versions < 2 
 DEFAULT_MAX = 512*1024*1024 # Default max size to use when none is passed
 MAX = ( 2 ** 31 )           # Absolute max size (limited by file format)
+BIN_OFFSETS_MAX[ 0 ] = MAX
 
-def offsets_for_max_size( max_size ):
+def offsets_for_max_size(max_size):
     """
     Return the subset of offsets needed to contain intervals over (0,max_size)
     """
-    for i, max in enumerate( reversed( BIN_OFFSETS_MAX ) ):
-        if max_size < max:
+    for i, max_ in enumerate(reversed(BIN_OFFSETS_MAX)):
+        if max_size <= max_:
             break
     else:
-        raise Exception( "%d is larger than the maximum possible size (%d)" % ( max_size, BIN_OFFSETS_MAX[0] ) )
-    return BIN_OFFSETS[ ( len(BIN_OFFSETS) - i - 1 ) : ]
+        raise Exception(("{0!s} is larger than the maximum" 
+        " possible size (0!s)").format(max_size, BIN_OFFSETS_MAX[0]))
+    return BIN_OFFSETS[(len(BIN_OFFSETS) - i - 1 ):]
 
-def bin_for_range( start, end, offsets=None ):
+def bin_for_range(start, end, offsets=None):
     """Find the smallest bin that can contain interval (start,end)"""
     if offsets is None:
         offsets = BIN_OFFSETS
@@ -150,7 +152,7 @@ def bin_for_range( start, end, offsets=None ):
             end_bin >>= BIN_NEXT_SHIFT
     raise Exceptionn("Interval (%d,%d) out of range")
 
-class AbstractMultiIndexedAccess( object ):
+class AbstractMultiIndexedAccess(object):
     """
     Allows accessing multiple indexes / files as if they were one
     """
@@ -174,7 +176,7 @@ class AbstractMultiIndexedAccess( object ):
         for index in self.indexes:
             index.close()
 
-class AbstractIndexedAccess( object ):
+class AbstractIndexedAccess(object):
     """Indexed access to a data using overlap queries, requires an index file"""
 
     def __init__( self, data_filename, index_filename=None, keep_open=False, use_cache=False, **kwargs ):
@@ -263,19 +265,19 @@ class AbstractIndexedAccess( object ):
     def read_at_current_offset( self, file, **kwargs ):
         raise TypeError( "Abstract Method" )
 
-class Indexes:
+class Indexes(object):
     """A set of indexes, each identified by a unique name"""
 
-    def __init__( self, filename=None ):
+    def __init__(self, filename=None):
         self.indexes = dict()
-        if filename is not None: self.open( filename )
+        if filename is not None: self.open(filename)
 
-    def add( self, name, start, end, val, max=DEFAULT_MAX ):
+    def add(self, name, start, end, val, max=DEFAULT_MAX):
         if name not in self.indexes:
-            self.indexes[name] = Index( max=max )
+            self.indexes[name] = Index(max=max)
         self.indexes[name].add( start, end, val )
 
-    def get( self, name ):
+    def get(self, name):
         if self.indexes[name] is None:
             offset, value_size = self.offsets[name]
             self.indexes[name] = Index( filename=self.filename, offset=offset, value_size=value_size, version=self.version )
@@ -310,9 +312,9 @@ class Indexes:
             self.offsets[ key ] = (offset,value_size)
         f.close()
 
-    def write( self, f ):
+    def write(self, f):
         keys = self.indexes.keys()
-        keys.sort()
+        keys = sorted(keys)
         # First determine the size of the header
         base = calcsize( ">3I" )
         for key in keys:
@@ -337,37 +339,38 @@ class Indexes:
         for key in keys:
             self.indexes[key].write( f )
 
-class Index:
+class Index(object):
 
-    def __init__( self, min=MIN, max=DEFAULT_MAX, filename=None, offset=0, value_size=None, version=None ):
+    def __init__(self, min=MIN, max=DEFAULT_MAX, filename=None, 
+            offset=0, value_size=None, version=None):
         self._value_size = value_size
         self.max_val = 1   # (1, rather than 0, to force value_size > 0)
         if filename is None:
-            self.new( min, max )
+            self.new(min, max)
         else:
-            self.open( filename, offset, version )
+            self.open(filename, offset, version)
 
-    def get_value_size ( self ):
+    def get_value_size(self):
         if self._value_size != None:
             return self._value_size
         else:
-            return round_up_to_4( bytes_of( self.max_val ) )
-    value_size = property( fget=get_value_size )
+            return round_up_to_4(bytes_of(self.max_val))
+    value_size = property(fget=get_value_size)
 
-    def new( self, min, max ):
+    def new(self, min, max):
         """Create an empty index for intervals in the range min, max"""
         # Ensure the range will fit given the shifting strategy
         assert MIN <= min <= max <= MAX
         self.min = min
         self.max = max
         # Determine offsets to use
-        self.offsets = offsets_for_max_size( max )
+        self.offsets = offsets_for_max_size(max)
         # Determine the largest bin we will actually use
-        self.bin_count = bin_for_range( max - 1, max, offsets = self.offsets ) + 1
+        self.bin_count = bin_for_range(max - 1, max, offsets = self.offsets) + 1
         # Create empty bins
-        self.bins = [ [] for i in range( self.bin_count ) ]
+        self.bins = [[] for i in range(self.bin_count)]
 
-    def open( self, filename, offset, version ):
+    def open(self, filename, offset, version):
         self.filename = filename
         self.offset = offset
         # Open the file and seek to where we expect our header
@@ -392,13 +395,13 @@ class Index:
         # Initialize bins to None, indicating that they need to be loaded
         self.bins = [ None for i in range( self.bin_count ) ]
 
-    def add( self, start, end, val ):
+    def add(self, start, end, val):
         """Add the interval (start,end) with associated value val to the index"""
         insort( self.bins[ bin_for_range( start, end, offsets=self.offsets ) ], ( start, end, val ) )
         assert val >= 0
         self.max_val = max(self.max_val,val)
 
-    def find( self, start, end ):
+    def find(self, start, end):
         rval = []
         start_bin = ( max( start, self.min ) ) >> BIN_FIRST_SHIFT
         end_bin = ( min( end, self.max ) - 1 ) >> BIN_FIRST_SHIFT
@@ -473,7 +476,7 @@ def write_packed_uints( f, v, num_bytes ):
     else:
         parts = []
         while num_bytes > 0:
-            parts.append( v & 0xFFFFFFFFL )
+            parts.append( v & 0xFFFFFFFF )
             v >>= 32
             num_bytes -= 4
         parts.reverse() # (write most-significant chunk first)

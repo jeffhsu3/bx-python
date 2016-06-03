@@ -2,7 +2,7 @@ from __future__ import division
 
 import sys
 from bx_extras.lrucache import LRUCache
-from cStringIO import StringIO
+from io import StringIO
 
 DEFAULT_CACHE_SIZE=10
 DEFAULT_BLOCK_SIZE=1024*1024*2
